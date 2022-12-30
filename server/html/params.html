@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+
+
+{% block title %}Choose parameters{% endblock %}
+
+
+{% block content %}
+
+
+<div class="container">
+    <h3>You can fill {{ default_param }} to auto-choose default parameter value</h3>
+    {{ wtf.quick_form(params) }}
+</div>
+
+<div class="default">
+    {{ wtf.quick_form(default_button) }}
+</div>
+
+{% endblock %}
