@@ -192,7 +192,7 @@ def training_model(model_type, params, X_train, y_train, X_val=None, y_val=None)
     if model_type == "RandomForest":
         model = ens.RandomForestMSE(**params)
     elif model_type == "GradientBoosting":
-        model = ens.RandomForestMSE(**params)
+        model = ens.GradientBoostingMSE(**params)
     else:
         return None
     yield from model.fit(X_train, y_train, X_val, y_val)
