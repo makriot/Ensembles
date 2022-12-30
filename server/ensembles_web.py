@@ -178,9 +178,9 @@ class GradientBoostingMSE:
             self.time_.append(time() - base_time)
 
             if history:
-                yield np.sum(s**2), self.scores_[-1]
+                yield np.sum(s**2) / y.size, self.scores_[-1]
             else:
-                yield np.sum(s**2), ""
+                yield np.sum(s**2) / y.size, ""
 
     def predict(self, X):
         """
