@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+
+
+{% block title %}Predict{% endblock %}
+
+
+{% block content %}
+
+
+<div class="uploader">
+    {{ wtf.quick_form(upload) }}
+</div>
+
+<div class="downloader">
+    Download:&nbsp;
+    <a href={{ url_for('download_subm') }}>Submission</a>
+</div>
+
+{% endblock %}

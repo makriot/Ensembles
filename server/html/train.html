@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+
+
+{% block title %}Train model{% endblock %}
+
+
+{% block content %}
+
+<center>
+
+<h3>RMSE loss on each iteration:</h3>
+{% for error in errors %}
+    <div>{{ error.train }}&nbsp;&nbsp;&nbsp;{{ error.val }}</div>
+{% endfor %}
+
+<div class="again">
+    {{ wtf.quick_form(again) }}
+</div>
+
+<div class="predict">
+    {{ wtf.quick_form(prediction) }}
+</div>
+
+<h3>Model info:</h3>
+<div>Model type: {{ model_type }}</div>
+{% for key in params.keys() %}
+    <div>{{ key }}:&nbsp;&nbsp;&nbsp;{{ params[key] }}</div>
+{% endfor %}
+
+</center>
+
+{% endblock %}
