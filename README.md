@@ -1,5 +1,5 @@
 # Ensembles
-Contains implementation of Random Forest, Gradient Boosting algorithms. Will contain a local web server to use these algorithms.
+Contains implementation of Random Forest, Gradient Boosting algorithms. Also contains a local web server to use these algorithms.
 
 ### Starting the server
 1. Build docker image:
@@ -20,3 +20,6 @@ Dockerfile and scripts must be in the same directory as server source
 5. Specify the target column name.
 6. After training you cat try training again, or you can create a submission on a new (or old) csv file with the same columns (except target).
 7. Upload csv file and download submission.csv as a prediction
+
+
+Link to dockerhub repository: https://hub.docker.com/repository/docker/makriot/ensembles_web_server
