@@ -11,6 +11,7 @@ numpy = "*"
 scipy = "*"
 scikit-learn = "*"
 pandas = "*"
+matplotlib = "*"
 
 [dev-packages]
 
