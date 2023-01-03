@@ -158,6 +158,10 @@ class GradientBoostingMSE:
         if history:
             base_test_prediction = tree.predict(X_val)
             self.scores_.append(np.sum((y_val - base_test_prediction)**2))
+        if history:
+            yield np.sum(s**2)/y.size, self.scores_[-1]
+        else:
+            yield np.sum(s**2)/y.size, ""
         ### init finish
 
         for _ in range(self.n_estimators - 1):
@@ -178,9 +182,9 @@ class GradientBoostingMSE:
             self.time_.append(time() - base_time)
 
             if history:
-                yield np.sum(s**2) / y.size, self.scores_[-1]
+                yield np.sum(s**2)/y.size, self.scores_[-1]
             else:
-                yield np.sum(s**2) / y.size, ""
+                yield np.sum(s**2)/y.size, ""
 
     def predict(self, X):
         """
