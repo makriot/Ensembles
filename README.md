@@ -4,11 +4,11 @@ Contains implementation of Random Forest, Gradient Boosting algorithms. Also con
 ### Starting the server
 1. Build docker image:
    ```bash
-   ./build.sh
+   sudo bash ./build.sh
    ```
 2. Run server:
    ```bash
-   ./run.sh
+   sudo bash ./run.sh
    ```
 Dockerfile and scripts must be in the same directory as server source
 
