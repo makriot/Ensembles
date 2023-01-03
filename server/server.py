@@ -1,32 +1,33 @@
+import os
+import base64
+from io import BytesIO
+from math import isnan
+
 from flask import Flask, render_template
 from flask import request, url_for, redirect
-from flask_bootstrap import Bootstrap
 from flask import session, send_from_directory
+from flask_bootstrap import Bootstrap
 from flask_wtf import FlaskForm
 from flask_wtf.file import FileAllowed, FileRequired
 
 from wtforms.validators import DataRequired, ValidationError
-from wtforms.validators import DataRequired
 from wtforms.validators import StopValidation
-
 from wtforms import FileField, SubmitField, StringField
 from wtforms import IntegerField, FloatField
 
-from math import isnan
-import ensembles_web as ens
 import pandas as pd
-import os
-import base64
-from io import BytesIO
+import matplotlib
 import matplotlib.pyplot as plt
-from matplotlib.figure import Figure
+import ensembles_web as ens
+
+matplotlib.use('Agg')
 
 app = Flask(__name__, template_folder='html')
 app.config['BOOTSTRAP_SERVE_LOCAL'] = True
 app.config['SECRET_KEY'] = 'snowden'
 Bootstrap(app)
 
-data_path = "./data"
+DATA_PATH = "./data"
 
 model = None
 train_df = None
@@ -34,8 +35,9 @@ val_df = None
 default_param = -1
 frequency_loss = 10
 
+
 ## checkers
-class Number_checker(object):
+class NumberChecker():
 
     def __init__(self, min=None, max=None, message=None, greater=False):
         self.min = min
@@ -64,7 +66,7 @@ class Number_checker(object):
             raise ValidationError(message % dict(min=self.min, max=self.max))
 
 
-class Train_csv_data_checker(object):
+class TrainCsvDataChecker():
 
     def __call__(self, form, field):
         global train_df
@@ -82,7 +84,7 @@ class Train_csv_data_checker(object):
         raise ValidationError(field.gettext("No numeric data in csv file"))
 
 
-class Test_csv_data_checker(object):
+class TestCsvDataChecker():
 
     def __call__(self, form, field):
         global val_df
@@ -98,9 +100,9 @@ class Test_csv_data_checker(object):
                 return
         val_df = None
         raise ValidationError(field.gettext("No numeric data in csv file"))
-        
 
-class Target_checker(object):
+
+class TargetChecker():
 
     def __call__(self, form, field):
         if train_df is None:
@@ -109,7 +111,7 @@ class Target_checker(object):
             raise ValidationError(field.gettext("No such column: '%s'.") % field.data)
 
 
-class File_optional(object):
+class FileOptional():
 
     def __call__(self, form, field):
         if not field.data:
@@ -123,69 +125,69 @@ class ChooseButton(FlaskForm):
     gb_model = SubmitField("Gradient Boosting")
 
 
-class Params_RF(FlaskForm):
-    n_estimators = IntegerField("Number of trees", 
-                validators=[DataRequired(), Number_checker(min=1)])
+class ParamsRF(FlaskForm):
+    n_estimators = IntegerField("Number of trees",
+                                validators=[DataRequired(), NumberChecker(min=1)])
     max_depth = IntegerField("Maximum depth",
-                validators=[DataRequired(), Number_checker(min=1)])
+                             validators=[DataRequired(), NumberChecker(min=1)])
     feature_subsample_size = IntegerField("Number of features",
-                validators=[DataRequired(), Number_checker(min=1)])
+                                          validators=[DataRequired(), NumberChecker(min=1)])
     train_file = FileField('Train dataset', validators=[
         FileRequired('Specify file'),
         FileAllowed(['csv'], 'CSV only!'),
-        Train_csv_data_checker()
+        TrainCsvDataChecker()
     ])
-    target = StringField('Target label', 
-                validators=[DataRequired(), Target_checker()])
+    target = StringField('Target label',
+                         validators=[DataRequired(), TargetChecker()])
     test_file = FileField('Validation dataset (optional)', validators=[
-        File_optional(),
+        FileOptional(),
         FileAllowed(['csv'], 'CSV only!'),
-        Test_csv_data_checker()
+        TestCsvDataChecker()
     ])
     button = SubmitField("Train")
 
 
-class Params_GB(FlaskForm):
-    n_estimators = IntegerField("Number of trees", 
-                validators=[DataRequired(), Number_checker(min=1)])
+class ParamsGB(FlaskForm):
+    n_estimators = IntegerField("Number of trees",
+                                validators=[DataRequired(), NumberChecker(min=1)])
     learning_rate = FloatField("Learning rate",
-                validators=[DataRequired(), Number_checker(min=0, greater=True)])
+                               validators=[DataRequired(), NumberChecker(min=0, greater=True)])
     max_depth = IntegerField("Maximum depth",
-                validators=[DataRequired(), Number_checker(min=1)])
+                             validators=[DataRequired(), NumberChecker(min=1)])
     feature_subsample_size = IntegerField("Number of features",
-                validators=[DataRequired(), Number_checker(min=1)])
+                                          validators=[DataRequired(), NumberChecker(min=1)])
     train_file = FileField('Train dataset', validators=[
         FileRequired('Specify file'),
         FileAllowed(['csv'], 'CSV only!'),
-        Train_csv_data_checker()
+        TrainCsvDataChecker()
     ])
-    target = StringField('Target label', 
-                validators=[DataRequired(), Target_checker()])
+    target = StringField('Target label',
+                         validators=[DataRequired(), TargetChecker()])
     test_file = FileField('Validation dataset (optional)', validators=[
-        File_optional(),
+        FileOptional(),
         FileAllowed(['csv'], 'CSV only!'),
-        Test_csv_data_checker()
+        TestCsvDataChecker()
     ])
     button = SubmitField("Train")
 
 
-class Default_params(FlaskForm):
+class DefaultParams(FlaskForm):
     but_def = SubmitField("Fill default parameters")
 
 
-class Again_button(FlaskForm):
+class AgainButton(FlaskForm):
     button1 = SubmitField("Try again")
 
 
-class Submission_button(FlaskForm):
+class SubmissionButton(FlaskForm):
     button2 = SubmitField("Predict")
 
 
-class CSV_upload(FlaskForm):
+class CSVUpload(FlaskForm):
     file_obj = FileField('Dataset', validators=[
         FileRequired('Specify file'),
         FileAllowed(['csv'], 'CSV only!'),
-        Test_csv_data_checker()
+        TestCsvDataChecker()
     ])
     submit = SubmitField("Submit")
 
@@ -193,7 +195,8 @@ class CSV_upload(FlaskForm):
 def create_plot(errors_train, errors_val):
     fig, ax = plt.subplots()
     ax.plot(range(1, len(errors_train) + 1), errors_train, label="train")
-    ax.plot(range(1, len(errors_train) + 1), errors_val, label="validation")
+    if len(errors_val) and errors_val[0]:
+        ax.plot(range(1, len(errors_train) + 1), errors_val, label="validation")
     ax.grid(True, alpha=0.5)
     ax.legend()
     ax.set_ylabel("RMSE")
@@ -208,6 +211,7 @@ def plot_png(errors_train, errors_val):
     data = base64.b64encode(buf.getbuffer()).decode("ascii")
     return f"data:image/png;base64,{data}"
 
+
 def training_model(model_type, params, X_train, y_train, X_val=None, y_val=None):
     global model
     if model_type == "RandomForest":
@@ -217,6 +221,7 @@ def training_model(model_type, params, X_train, y_train, X_val=None, y_val=None)
     else:
         return None
     yield from model.fit(X_train, y_train, X_val, y_val)
+
 
 def preprocess_data(df, target=None):
     col_list = []
@@ -228,16 +233,17 @@ def preprocess_data(df, target=None):
     else:
         return df[col_list].to_numpy(), df[target].to_numpy()
 
+
 def predict_model(data):
     return model.predict(data)
-        
+
 
 @app.route('/', methods=['GET', 'POST'])
 def choose_model():
     try:
         button = ChooseButton()
 
-        if button.validate_on_submit():
+        if request.method == "POST" and button.validate_on_submit():
             if button.rf_model.data:
                 return redirect(url_for("params_model", model="RandomForest"))
             elif button.gb_model.data:
@@ -251,22 +257,21 @@ def choose_model():
 @app.route('/params', methods=['GET', 'POST'])
 def params_model():
     try:
-        
-        default_button = Default_params()
+        default_button = DefaultParams()
         model_type = request.args.get("model")
 
         if request.method == 'POST' and default_button.but_def and default_button.validate():
             if model_type == "RandomForest":
-                params = Params_RF(n_estimators=25, max_depth=default_param,
-                            feature_subsample_size=default_param)
+                params = ParamsRF(n_estimators=25, max_depth=default_param,
+                                  feature_subsample_size=default_param)
             elif model_type == "GradientBoosting":
-                params = Params_GB(n_estimators=50, max_depth=default_param,
-                            feature_subsample_size=default_param, learning_rate=0.1)
+                params = ParamsGB(n_estimators=500, max_depth=default_param,
+                                  feature_subsample_size=default_param, learning_rate=0.1)
         else:
             if model_type == "RandomForest":
-                params = Params_RF()
+                params = ParamsRF()
             elif model_type == "GradientBoosting":
-                params = Params_GB()
+                params = ParamsGB()
             else:
                 return redirect(url_for("choose_model"))
 
@@ -281,8 +286,9 @@ def params_model():
             session["target"] = params.target.data
             return redirect(url_for("train_model"))
 
-        return render_template("params.html", params=params, 
-                    default_button=default_button, default_param=default_param)
+        return render_template("params.html", params=params,
+                               default_button=default_button,
+                               default_param=default_param)
     except Exception as exc:
         app.logger.info('Exception in params: {0}'.format(exc))
         return render_template("params.html", params=params)
@@ -293,6 +299,7 @@ class Error_pred:
     train = ""
     val = ""
 
+
 @app.route('/params/train', methods=['GET', 'POST'])
 def train_model():
     global model
@@ -300,18 +307,18 @@ def train_model():
     errors_train = []
     errors_val = []
     try:
-        #buttons
-        again_button = Again_button()
-        predict_button = Submission_button()
+        # buttons
+        again_button = AgainButton()
+        predict_button = SubmissionButton()
 
         if request.method == 'POST' and again_button.button1.data and again_button.validate():
             return redirect(url_for("choose_model"))
 
         if request.method == 'POST' and predict_button.button2.data and predict_button.validate():
-            with open(os.path.join(data_path, "submission.csv"), "w"):
+            with open(os.path.join(DATA_PATH, "submission.csv"), "w"):
                 pass
             return redirect(url_for("submission"))
-        #buttons
+        # buttons
 
         params = session["params"]
         model_type = session["model_type"]
@@ -322,7 +329,7 @@ def train_model():
         else:
             X_val, y_val = None, None
 
-        #default keys check
+        # default keys check
         for key in list(params.keys()):
             if params[key] == default_param:
                 if key == "n_estimators":
@@ -332,7 +339,7 @@ def train_model():
                         params[key] = 500
                 else:
                     del params[key]
-        #end check
+        # end check
 
         train_obj = training_model(model_type, params, X_train, y_train, X_val, y_val)
         for i, error in enumerate(train_obj):
@@ -359,9 +366,9 @@ def train_model():
             params["learning_rate"] = model.learning_rate
 
         return render_template("train.html", errors=errors_frequency,
-                        again=again_button, prediction=predict_button,
-                        model_type=model_type, params=params, 
-                        graphic_source=path_graphic)
+                               again=again_button, prediction=predict_button,
+                               model_type=model_type, params=params,
+                               graphic_source=path_graphic)
     except Exception as exc:
         app.logger.info('Exception in train: {0}'.format(exc))
         model = None
@@ -371,14 +378,16 @@ def train_model():
 @app.route("/params/train/predict", methods=['GET', 'POST'])
 def submission():
     try:
+        if model is None:
+            redirect(url_for("choose_model"))
         target = session["target"]
-        uploaded_file = CSV_upload()
+        uploaded_file = CSVUpload()
 
         if request.method == "POST" and uploaded_file.validate_on_submit():
             uploaded_file.submit.data = False
             y_pred = predict_model(preprocess_data(val_df))
             y_pred = pd.DataFrame(y_pred, columns=[target])
-            y_pred.to_csv(os.path.join(data_path, "submission.csv"), index=False)
+            y_pred.to_csv(os.path.join(DATA_PATH, "submission.csv"), index=False)
             session["can_load"] = True
 
         return render_template("submission.html", upload=uploaded_file)
@@ -386,17 +395,19 @@ def submission():
         app.logger.info('Exception in submission: {0}'.format(exc))
         return redirect(url_for("submission"))
 
+
 @app.route("/uploads/submission")
 def download_subm():
     try:
         if session.get("can_load"):
-            return send_from_directory(directory=data_path, path="submission.csv")
+            return send_from_directory(directory=DATA_PATH, path="submission.csv")
         else:
             session["can_load"] = False
             return redirect(url_for("submission"))
     except Exception as exc:
         app.logger.info('Exception in download: {0}'.format(exc))
         return redirect(url_for("submission"))
+
 
 @app.errorhandler(404)
 def handle_404(e):
