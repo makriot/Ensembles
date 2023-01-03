@@ -16,6 +16,10 @@ from math import isnan
 import ensembles_web as ens
 import pandas as pd
 import os
+import base64
+from io import BytesIO
+import matplotlib.pyplot as plt
+from matplotlib.figure import Figure
 
 app = Flask(__name__, template_folder='html')
 app.config['BOOTSTRAP_SERVE_LOCAL'] = True
@@ -28,7 +32,7 @@ model = None
 train_df = None
 val_df = None
 default_param = -1
-
+frequency_loss = 10
 
 ## checkers
 class Number_checker(object):
@@ -166,15 +170,15 @@ class Params_GB(FlaskForm):
 
 
 class Default_params(FlaskForm):
-    button = SubmitField("Fill default parameters")
+    but_def = SubmitField("Fill default parameters")
 
 
 class Again_button(FlaskForm):
-    button = SubmitField("Try again")
+    button1 = SubmitField("Try again")
 
 
 class Submission_button(FlaskForm):
-    button = SubmitField("Predict")
+    button2 = SubmitField("Predict")
 
 
 class CSV_upload(FlaskForm):
@@ -186,6 +190,23 @@ class CSV_upload(FlaskForm):
     submit = SubmitField("Submit")
 
 
+def create_plot(errors_train, errors_val):
+    fig, ax = plt.subplots()
+    ax.plot(range(1, len(errors_train) + 1), errors_train, label="train")
+    ax.plot(range(1, len(errors_train) + 1), errors_val, label="validation")
+    ax.grid(True, alpha=0.5)
+    ax.legend()
+    ax.set_ylabel("RMSE")
+    ax.set_xlabel("Iterations")
+    return fig
+
+
+def plot_png(errors_train, errors_val):
+    fig = create_plot(errors_train, errors_val)
+    buf = BytesIO()
+    fig.savefig(buf, format="png")
+    data = base64.b64encode(buf.getbuffer()).decode("ascii")
+    return f"data:image/png;base64,{data}"
 
 def training_model(model_type, params, X_train, y_train, X_val=None, y_val=None):
     global model
@@ -230,29 +251,26 @@ def choose_model():
 @app.route('/params', methods=['GET', 'POST'])
 def params_model():
     try:
-        model_type = request.args.get("model")
-        if model_type == "RandomForest":
-            params = Params_RF()
-        elif model_type == "GradientBoosting":
-            params = Params_GB()
-        else:
-            return redirect(url_for("choose_model"))
         
         default_button = Default_params()
+        model_type = request.args.get("model")
 
-        if request.method == 'POST' and default_button.validate_on_submit():
-            default_button.data["button"] = False
+        if request.method == 'POST' and default_button.but_def and default_button.validate():
             if model_type == "RandomForest":
-                params.n_estimators.data = 25
-                params.max_depth.data = default_param
-                params.feature_subsample_size.data = default_param
+                params = Params_RF(n_estimators=25, max_depth=default_param,
+                            feature_subsample_size=default_param)
             elif model_type == "GradientBoosting":
-                params.n_estimators.data = 500
-                params.max_depth.data = default_param
-                params.feature_subsample_size.data = default_param
-                params.learning_rate.data = 0.1
+                params = Params_GB(n_estimators=50, max_depth=default_param,
+                            feature_subsample_size=default_param, learning_rate=0.1)
+        else:
+            if model_type == "RandomForest":
+                params = Params_RF()
+            elif model_type == "GradientBoosting":
+                params = Params_GB()
+            else:
+                return redirect(url_for("choose_model"))
 
-        if request.method == 'POST' and params.validate_on_submit():
+        if request.method == 'POST' and params.validate_on_submit() and params.button.data:
             params_dict = {"n_estimators": params.n_estimators.data,
                            "max_depth": params.max_depth.data,
                            "feature_subsample_size": params.feature_subsample_size.data}
@@ -269,29 +287,30 @@ def params_model():
         app.logger.info('Exception in params: {0}'.format(exc))
         return render_template("params.html", params=params)
 
-error_list = []
 
 class Error_pred:
+    iteration = ""
     train = ""
     val = ""
 
 @app.route('/params/train', methods=['GET', 'POST'])
 def train_model():
-    global error_list
     global model
+    error_list = []
+    errors_train = []
+    errors_val = []
     try:
         #buttons
         again_button = Again_button()
         predict_button = Submission_button()
 
-        if request.method == "POST" and predict_button.validate_on_submit():
-            predict_button.button.data = False
+        if request.method == 'POST' and again_button.button1.data and again_button.validate():
+            return redirect(url_for("choose_model"))
+
+        if request.method == 'POST' and predict_button.button2.data and predict_button.validate():
             with open(os.path.join(data_path, "submission.csv"), "w"):
                 pass
             return redirect(url_for("submission"))
-        if request.method == "POST" and again_button.validate_on_submit():
-            again_button.button.data = False
-            return redirect(url_for("choose_model"))
         #buttons
 
         params = session["params"]
@@ -316,21 +335,33 @@ def train_model():
         #end check
 
         train_obj = training_model(model_type, params, X_train, y_train, X_val, y_val)
-        for error in train_obj:
+        for i, error in enumerate(train_obj):
             err_obj = Error_pred()
             x, y = error
+            errors_train.append(x)
+            errors_val.append(y)
+            iteration = "Iteration: {}".format(i + 1) if x else ""
             x = "Train: {:.2f}".format(x**(1/2)) if x else ""
             y = "Validation: {:.2f}".format(y**(1/2)) if y else ""
-            err_obj.train, err_obj.val = x, y
+            err_obj.iteration, err_obj.train, err_obj.val = iteration, x, y
             error_list.append(err_obj)
+        errors_frequency = []
+        step = max(1, params["n_estimators"]//frequency_loss)
+        for i in range(frequency_loss):
+            errors_frequency.append(error_list[i * step])
+        final_err = error_list[-1]
+        final_err.iteration = f"Final {final_err.iteration}"
+        errors_frequency.append(final_err)
+        path_graphic = plot_png(errors_train, errors_val)
         params["max_depth"] = model.max_depth
         params["feature_subsample_size"] = model.feature_subsample_size
         if model_type == "GradientBoosting":
             params["learning_rate"] = model.learning_rate
 
-        return render_template("train.html", errors=error_list,
+        return render_template("train.html", errors=errors_frequency,
                         again=again_button, prediction=predict_button,
-                        model_type=model_type, params=params)
+                        model_type=model_type, params=params, 
+                        graphic_source=path_graphic)
     except Exception as exc:
         app.logger.info('Exception in train: {0}'.format(exc))
         model = None
