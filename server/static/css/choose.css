@@ -1,0 +1,56 @@
+html {
+    height: 100%;
+    width: 100%;
+}
+body {
+    height: 100%;
+    width: 100%;
+}
+.wrapper {
+    height: 100%;
+    width: 100%;
+
+    background-image: url("../creed_choose.jpg");
+    background-size: cover;
+    overflow: hidden;
+}
+.btn {
+    color: black;
+}
+.container {
+    height: auto;
+    position: relative;
+    left: 720px;
+    top: 342px;
+}
+#rf_model {
+    height: 100px;
+    width: 220px;
+    overflow: auto;
+    position: relative;
+    left: 120px;
+    top: 18px;
+
+    font-size: 20px;
+    border-radius: 10px;
+    background-color: rgb(223, 223, 223);
+}
+#gb_model {
+    height: 100px;
+    width: 220px;
+    overflow: auto;
+    position: relative;
+    left: 170px;
+    top: 18px;
+
+    font-size: 20px;
+    border-radius: 10px;
+    background-color: rgb(223, 223, 223);
+}
+#fdescr {
+    position: relative;
+    overflow: auto;
+
+    font-size: 80px;
+    color: white;
+}
