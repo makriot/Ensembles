@@ -1,13 +1,23 @@
 {% extends "base.html" %}
 
 
-{% block title %}Choose model{% endblock %}
+{% block styles %}
+{{super()}}
+
+<link rel="stylesheet" type="text/css" href={{ url_for('static', filename='css/choose.css') }}>
+
+{% endblock %}
+
+
+{% block title %}Choose fighter{% endblock %}
 
 
 {% block content %}
-
-<div class="container">
-    {{ wtf.quick_form(form) }}
+<div class="wrapper">
+    <div class="container">
+        <h3 id="fdescr">Choose your fighter</h3>
+        {{ wtf.quick_form(form, id="chooser") }}
+    </div>
 </div>
 
 {% endblock %}
