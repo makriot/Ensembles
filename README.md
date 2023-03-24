@@ -10,7 +10,7 @@ Contains implementation of Random Forest, Gradient Boosting algorithms. Also con
    ```bash
    sudo bash ./run.sh
    ```
-Dockerfile and scripts must be in the same directory as server source
+Dockerfile and scripts must be in the same directory as server source (just put Dockerfile and scripts in "server" directory)
 
 ### Basic usage
 1. Type "0.0.0.0:5000" in the search bar in your browser.
